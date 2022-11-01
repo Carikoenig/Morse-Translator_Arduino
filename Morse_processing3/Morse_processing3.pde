@@ -33,6 +33,20 @@ int previousState = 0;
 // store the transformed signal as Morse Code an Integer variation
 // 1 = short press, 2 = long press, 0 = space for new signal, 7 = space for new letter, 8 = new word, 9 = error
 IntList MorseReceivedFromArduino = new IntList();
+// store the transformed signal grouped by having each letter or space in its own array
+ArrayList<IntList> MorseAsLetters = new ArrayList<IntList>();
+// have a temporary space to group the letter signal that belong together...might not workaout because templ always gets overwritten
+//IntList templ = new IntList(); // might not be needed...exchange for templstring
+String templstring = "";
+//store the Letters that the signal from Arduino has been translated to
+StringList Letters = new StringList();
+// actually just recording the String right away should suffice
+//String ArduinoToLetters = ""; // might not be needed
+StringDict morseLetterDict; // to be filled in setup
+// the finally finished String translation originated from the Arduino signal
+String stringTranslation = "";
+// show translation only after button was pressed by user on screen (0 = don't show, 1 = show)
+int showTranslation = 0;
 
 //TODO: make a dictionary to translate letters to morse. joker symbol for not matching letter inputs (e.g. input that can't be found in the morse dict), handle errors as spaces?
 
@@ -59,6 +73,47 @@ void setup() {
   String arduinoPort = Serial.list()[0];
   port = new Serial(this, arduinoPort, 9600);
   port.bufferUntil('\n');
+
+  // create and fill the morse dictionary (s = short, L = long)
+  morseLetterDict = new StringDict();
+  //letters
+  morseLetterDict.set("sL", "A");
+  morseLetterDict.set("Lsss", "B");
+  morseLetterDict.set("LsLs", "C");
+  morseLetterDict.set("Lss", "D");
+  morseLetterDict.set("s", "E");
+  morseLetterDict.set("ssLs", "F");
+  morseLetterDict.set("LLs", "G");
+  morseLetterDict.set("ssss", "H");
+  morseLetterDict.set("ss", "I");
+  morseLetterDict.set("sLLL", "J");
+  morseLetterDict.set("LsL", "K");
+  morseLetterDict.set("sLss", "L");
+  morseLetterDict.set("LL", "M");
+  morseLetterDict.set("Ls", "N");
+  morseLetterDict.set("LLL", "O");
+  morseLetterDict.set("sLLs", "P");
+  morseLetterDict.set("LLsL", "Q");
+  morseLetterDict.set("sLs", "R");
+  morseLetterDict.set("sss", "S");
+  morseLetterDict.set("L", "T");
+  morseLetterDict.set("ssL", "U");
+  morseLetterDict.set("sssL", "V");
+  morseLetterDict.set("sLL", "W");
+  morseLetterDict.set("LssL", "X");
+  morseLetterDict.set("LsLL", "Y");
+  morseLetterDict.set("LLss", "Z");
+  //numbers
+  morseLetterDict.set("sLLLL", "1");
+  morseLetterDict.set("ssLLL", "2");
+  morseLetterDict.set("sssLL", "3");
+  morseLetterDict.set("ssssL", "4");
+  morseLetterDict.set("sssss", "5");
+  morseLetterDict.set("Lssss", "6");
+  morseLetterDict.set("LLsss", "7");
+  morseLetterDict.set("LLLss", "8");
+  morseLetterDict.set("LLLLs", "9");
+  morseLetterDict.set("LLLLL", "0");
 }
 
 void draw() {
@@ -145,29 +200,59 @@ void draw() {
 
         // read the duration of the signal (divide through 10 to get rid of last digit that indicates press or no press)
         if (previousInput/10 > 3000 && previousState == 1) {
-          // add a long press to the ArrayList
+          // add a long press to the IntList storage
           MorseReceivedFromArduino.append(2);
+          // add a long press to the temporary letter grouping space
+          //templ.append(2);
+          templstring = templstring + "L";
         } else if (previousInput/10 < 3000 && previousState == 1) {
-          // add a short press to the ArrayList
+          // add a short press to the IntList and templ
           MorseReceivedFromArduino.append(1);
+          //templ.append(1);
+          templstring = templstring + "s";
         } else if (previousState == 0 && previousInput/10 <=1000) {
           // add a simple space (between signals of same letter)
           MorseReceivedFromArduino.append(0);
+          // do nothing with the templ
         } else if (previousState == 0 && previousInput/10 <=3000) {
           // add a space between letters
           MorseReceivedFromArduino.append(7);
+          //since the signal that belongs to one letter (e.g. short-long-long) is finished we can determine which letter it belongs to
+          String letter = checkLetter(templstring);
+          // add the letter to the string translation
+          //ArduinoToLetters = ArduinoToLetters + letter;
+          stringTranslation = stringTranslation + letter;
+          // after having pushed the templ to the other list, empty the temporary space so it can be filled with the new letter
+          //templ.clear();
+          // make the temporary string storage empty again so it can be filled with a new letter
+          templstring = "";
         } else if (previousState == 0 && previousInput/10 > 3000) {
           // add a space between words (ideally it should be 7 seconds long, which technically is more than 3000;))
           MorseReceivedFromArduino.append(8);
+          // an in between words space emerging means a) that the letter ends and b) we have to put a space in the Output string
+          //MorseAsLetters.add(templ);
+          //templ.clear();
+          // TODO: could this be made outside draw at beginning or does it have to be made new eveytime in the loop to have several???
+          //IntList space = new IntList();
+          //space.append(8);
+          //MorseAsLetters.add(space);
+          String letter = checkLetter(templstring);
+          stringTranslation = stringTranslation + letter + " ";
+          templstring = "";
         } else {
           // error tracking
           MorseReceivedFromArduino.append(9);
+          // append a "joker" letter to the Letter list...how to display this? Ignore?
+          //IntList error = new IntList();
+          //error.append(9);
+          //MorseAsLetters.add(error);
+          stringTranslation = stringTranslation + "(^o^)";
         }
       }
 
-      //TODO: get rid of ANOYING flimmer
-      // TODO: trim the beginning space
-      
+      //TODO: get rid of ANOYING flimmer...solution so far: put a small delay
+      // TODO: trim the beginning space (half done, but what if it starts with 9?)
+
       // display the received signals in the IntList on screen as circles and rectangles
       int xloc = width/2 + width/4 + 20;
       int yloc = 200;
@@ -176,7 +261,8 @@ void draw() {
       int filler = shapesize/2;
       fill(0);
       ellipseMode(CORNERS);
-      for (int i = 0; i < MorseReceivedFromArduino.size(); i++) {
+      // start loop with i = 1 because value at 0 always is the useless space that gets recorded before you push the button the first time
+      for (int i = 1; i < MorseReceivedFromArduino.size(); i++) {
         int morseSig = MorseReceivedFromArduino.get(i);
         switch(morseSig) {
         case 1: 
@@ -221,21 +307,37 @@ void draw() {
         }
       }
 
+      // better way to stop flimmer probs exists, but for now...
+      delay(7);
+      // idea: instead of running through the foor loop all the way everytime: cut out the already read by making an object array of shapes that is going to be printed???maybe...but we would have to for loop through that as well to paint every time^^
+
+
+      // Display the translated text on screen
+      // make an array out of the array that groups the letters and spaces together in its own array by seperating after the spaces
+
+
+
 
       // was once useful for debugging
       //println("InputTrans: " + transInput);
       //println(SignalReceivedFromArduino);
       println(MorseReceivedFromArduino);
+      //println("Letter list: " + MorseAsLetters);
+      println(stringTranslation);
 
       //overwrite the previous States to the new ones for next loop
       previousInput = transInput;
       previousState = pressedState;
     }
   }
-  //buttonState = map(buttonState, 0, 255, 0, height);  // Convert the value
 
-  //rect(100, height-100, 50, 20);
-  //println(buttonState);
+  // show the translated string (if button has been previously pressed)
+  if (showTranslation == 1 && stringTranslation != "") {
+    textFont(f, 26);
+    fill(100);
+    textAlign(CENTER);
+    text(stringTranslation, width/2+width/4, 700);
+  }
 }
 
 void input(String input) {
@@ -249,10 +351,31 @@ void translate() {
 }
 
 void translate_to_text() {
-  // transform the IntList to a CharList, then make a string out of it and print it on screen
+  // when button gets pressed show the translaion on the screen
+  showTranslation = 1;
+  // since string is always one letter behing...push the last letter in the string (except for when templstring is empty)
+  if (templstring != "") {
+    String letter = checkLetter(templstring);
+    stringTranslation = stringTranslation + letter + " ";
+    templstring = "";
+  }
 }
 
 void delete() {
-  // remove all entries from the IntList where the Morse signal from Arduino is stored
+  // remove all entries from the IntList where the Morse signal from Arduino is stored 
+  // and delete the previous translation text
   MorseReceivedFromArduino.clear();
+  stringTranslation= "";
+  showTranslation = 0;
+  templstring = "";
+}
+
+String checkLetter(String morsedLetter) {
+  // determine which character is matched with the morsedLetter
+  String letter = morseLetterDict.get(morsedLetter);
+  if (letter != null) {
+    return letter;
+  } else {
+    return "(?)";
+  }
 }
