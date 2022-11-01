@@ -47,6 +47,7 @@ StringDict morseLetterDict; // to be filled in setup
 String stringTranslation = "";
 // show translation only after button was pressed by user on screen (0 = don't show, 1 = show)
 int showTranslation = 0;
+int showWarning = 0;
 
 //TODO: make a dictionary to translate letters to morse. joker symbol for not matching letter inputs (e.g. input that can't be found in the morse dict), handle errors as spaces?
 
@@ -229,23 +230,16 @@ void draw() {
         } else if (previousState == 0 && previousInput/10 > 3000) {
           // add a space between words (ideally it should be 7 seconds long, which technically is more than 3000;))
           MorseReceivedFromArduino.append(8);
-          // an in between words space emerging means a) that the letter ends and b) we have to put a space in the Output string
-          //MorseAsLetters.add(templ);
-          //templ.clear();
-          // TODO: could this be made outside draw at beginning or does it have to be made new eveytime in the loop to have several???
-          //IntList space = new IntList();
-          //space.append(8);
-          //MorseAsLetters.add(space);
-          String letter = checkLetter(templstring);
-          stringTranslation = stringTranslation + letter + " ";
-          templstring = "";
+          // an in between words space emerging means a) that the letter ends (if there was one before) and b) we have to put a space in the Output string
+          if (templstring != "") {
+            String letter = checkLetter(templstring);
+            stringTranslation = stringTranslation + letter + " ";
+            templstring = "";
+          }
         } else {
           // error tracking
           MorseReceivedFromArduino.append(9);
           // append a "joker" letter to the Letter list...how to display this? Ignore?
-          //IntList error = new IntList();
-          //error.append(9);
-          //MorseAsLetters.add(error);
           stringTranslation = stringTranslation + "(^o^)";
         }
       }
@@ -333,10 +327,22 @@ void draw() {
 
   // show the translated string (if button has been previously pressed)
   if (showTranslation == 1 && stringTranslation != "") {
+    // needs to be checked double since printing continues even after the button was pressed if the user gives more input then (then the input could get too big at some point)
+    if(textWidth(stringTranslation) > width/2){
+    showWarning = 1;
+    // delete the stringtrans and templ
+    stringTranslation = "";
+    templstring = "";
+   }
     textFont(f, 26);
     fill(100);
     textAlign(CENTER);
     text(stringTranslation, width/2+width/4, 700);
+  }
+  // show warning when user input too big
+  if (showWarning == 1) {
+    fill(255, 0, 50);
+    text("The translation is too big for the screen, please delete your morse input!", width/2+width/4, 600);
   }
 }
 
@@ -351,13 +357,19 @@ void translate() {
 }
 
 void translate_to_text() {
-  // when button gets pressed show the translaion on the screen
-  showTranslation = 1;
-  // since string is always one letter behing...push the last letter in the string (except for when templstring is empty)
-  if (templstring != "") {
-    String letter = checkLetter(templstring);
-    stringTranslation = stringTranslation + letter + " ";
+  // when button gets pressed show the translation on the screen
+  if (textWidth(stringTranslation) < width/2) {
+    showTranslation = 1;
+    // since string is always one letter behing...push the last letter in the string (except for when templstring is empty)
+    if (templstring != "") {
+      String letter = checkLetter(templstring);
+      stringTranslation = stringTranslation + letter + " ";
+      templstring = "";
+    }
+  } else {
+    showWarning = 1;
     templstring = "";
+    stringTranslation = "";
   }
 }
 
@@ -367,6 +379,7 @@ void delete() {
   MorseReceivedFromArduino.clear();
   stringTranslation= "";
   showTranslation = 0;
+  showWarning = 0;
   templstring = "";
 }
 
