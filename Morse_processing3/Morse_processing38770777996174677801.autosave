@@ -199,7 +199,7 @@ void draw() {
   }
   if (showArduinoHint == 1) {
     fill(32, 6, 149);
-    text("Watch arduino LED blink the morse code...", width/4, 700);
+    text("Watch arduino LED blink the morse code...", width/4, 710);
   }
 
   // Screen to Arduino Logic
@@ -210,6 +210,7 @@ void draw() {
 
 
   //line to seperate the Screen-Arduino/ Arduino-Screen functionalities visually
+  strokeWeight(2);
   line(width/2, 0, width/2, height);
 
 
@@ -221,7 +222,7 @@ void draw() {
   fill(100);
   textAlign(CENTER);
   fill(32, 6, 149);
-  text("Use the button on the Arduino to input morse signals.", width/2+width/4, 50);
+  text("Use the button on the Arduino to input morse signals [1 unit = 1 sec]", width/2+width/4, 50);
   fill(100);
 
   //insert morse picture from wiki, so you have a chart to do morse with in case you're actually not fluent in morse
@@ -229,7 +230,8 @@ void draw() {
 
   //use the area next to the pic to display the morse input from user as circles and rectangles
   text("Your Input:", width/2 + width/4 + width/8, 120);
-  text("Your Output:", width/2 + 100, 650);
+  text("Your Output:", width/2 + 100, 650);          /////////////////////////////////////////////////////////////////////////////////////
+
 
 
   // Arduino to Screen Logic
@@ -397,6 +399,9 @@ void draw() {
     fill(0);
     textAlign(CENTER);
     text(stringTranslation, width/2+width/4, 700);
+    // reset text settings
+    textFont(f, 26);
+    fill(100);
   }
   // show warning when user input too big
   if (showWarning == 1) {

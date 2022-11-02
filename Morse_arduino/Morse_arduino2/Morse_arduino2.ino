@@ -20,7 +20,6 @@ void loop() {
   if (Serial.available()) {
     // read the incoming data from processing
     received = Serial.read();
-    Serial.println(received);
     
     switch (received) {
     case 1:
