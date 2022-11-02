@@ -1,6 +1,5 @@
-// watch user input regulations...what if no letters that can be translatd into morseß
-// what if user inputs endless text...have a limit
-// what i fno input was given...give user a message to put input etc.
+// watch user input regulations...what if no letters that can be translatd into morse: letters or other symbols that are not in 
+// the international morse code chart will be ignored when translating text to the Arduino LED 
 
 /*
 https://processing.org/tutorials/text/#displaying-text
@@ -8,6 +7,7 @@ https://processing.org/tutorials/text/#displaying-text
  controlP5 library
  millis: https://www.arduino.cc/reference/en/language/functions/time/millis/
  trim: https://processing.org/reference/trim_.html
+ connect processing to arduino: https://learn.sparkfun.com/tutorials/connecting-arduino-to-processing/all#from-processing
  */
 
 
@@ -19,6 +19,7 @@ String user_input = "";
 String display_input = "";
 PFont f;
 PFont f2;
+PFont b;
 // prepare picture display on screen
 PImage morsePic;
 // setup the connection to the arduino part
@@ -49,33 +50,34 @@ String stringTranslation = "";
 // show translation only after button was pressed by user on screen (0 = don't show, 1 = show)
 int showTranslation = 0;
 int showWarning = 0;
+// show user hint in case translation button has been pressed before
+int showArduinoHint = 0;
 // contains the translations for letters to morse signals
 StringDict morseSigDict; // filled in setup
 // stores the complete Letter to Morse signal translation, so it can be printed on screen later
 IntList morseList = new IntList();
 
-//TODO: make a dictionary to translate letters to morse. joker symbol for not matching letter inputs (e.g. input that can't be found in the morse dict), handle errors as spaces?
 
 void setup() {
   size(1900, 800);
   background(255);
 
-  f = createFont("Arial", 26, true); // Arial, 16 point, anti-aliasing on
+  f = createFont("Arial", 26, true); 
   f2 = createFont("Arial", 16, true); 
+  b = createFont("Arial Bold", 26, true);
 
   // load the morse alphabet picture to be shown on screen in draw()
   morsePic = loadImage("InternationalMorseCodePicFromWiki.PNG");
 
   cp5 = new ControlP5(this);
-  //TODO: how to center the cp5 elements on screen...they're a bit off
   // Screen to Arduino elements
   cp5.addTextfield("input").setPosition(50, 200).setSize(850, 150).setFont(f);
-  cp5.addButton("translate").setPosition((width/4)-90, 380).setSize(180, 60).setFont(f);
+  cp5.addButton("translate").setPosition((width/4)-90, 550).setSize(180, 60).setFont(f);
   // Arduino to Screen elements
   cp5.addButton("translate_to_text").setPosition((width/2 + width/4 + 20), 510).setSize(200, 40).setFont(f2);
   cp5.addButton("delete").setPosition((width/2 + width/4 + 250), 510).setSize(200, 40).setFont(f2);
 
-  printArray(Serial.list());  // 0 passt
+  //printArray(Serial.list());  // 0 passt
   String arduinoPort = Serial.list()[0];
   port = new Serial(this, arduinoPort, 9600);
   port.bufferUntil('\n');
@@ -166,14 +168,10 @@ void setup() {
 }
 
 void draw() {
-  // TODO: clear the screen, so old inputs don't stay printed when new things are being drawn when user input gets changed
-  background(255); // nicer to only redraw if user_input got changed?
-  // TODO: how to format the user input, so that is going to be nicely formatted
-  // make breaks when it is out of range from screen etc
 
+  // clear the screen, so old inputs don't stay printed when new things are being drawn when user input gets changed
+  background(255); 
 
-  // TODO: does it really have to be redrawn every single frame??? can we have some redraw only when the 
-  //the button gets pushed?
 
   // Screen to Arduino GUI
   textFont(f, 26);
@@ -183,21 +181,29 @@ void draw() {
   text("2.Press enter.", width/4, 100);
   text("3. Click on TRANSLATE", width/4, 150);
   textFont(f, 26);
-  //text(user_input, width/2, 50);
+  text("Your Input:", 110, 400);
+  text("Your Output:", 110, 700);
+  // measure the width of the text to restrict input in case it exceeds the allocated space for it
   float w = textWidth(user_input);
-  //println("This is the width of the user_input in the specific font and size: " + w);
   if (w>=(width/2)) {
-    //println("if triggered, text too big");
-    //TODO: save too big input in some way though so user won't have to enter everything again?...nooo, we're not that nice^^
     fill(255, 0, 50);
-    text("The input is too big for the screen!", width/4, 500);
+    text("The input is too big for the screen!", width/4, 460);
+    showArduinoHint = 0;
   } else {
+    textFont(b, 26);
+    fill(0);
+    text(user_input, width/4, 460);
+    // reset the text setting to the standard
+    textFont(f, 26);
     fill(100);
-    text(user_input, width/4, 500);
+  }
+  if (showArduinoHint == 1) {
+    fill(32, 6, 149);
+    text("Watch arduino LED blink the morse code...", width/4, 700);
   }
 
-  // TODO: Screen to Arduino Logic
-  // all handled by the translate button function?
+  // Screen to Arduino Logic
+  // all handled by the translate button function outside of draw
   // debugging
   println("The morse list(P to A): " + morseList);
 
@@ -214,7 +220,9 @@ void draw() {
   textFont(f, 26);
   fill(100);
   textAlign(CENTER);
+  fill(32, 6, 149);
   text("Use the button on the Arduino to input morse signals.", width/2+width/4, 50);
+  fill(100);
 
   //insert morse picture from wiki, so you have a chart to do morse with in case you're actually not fluent in morse
   image(morsePic, width/2 + 50, 100, 400, 450);
@@ -227,7 +235,7 @@ void draw() {
   // Arduino to Screen Logic
 
   // TODO: Outsource stuff in smaller functions for readability!!
-  // TODO: display the integer morse as text on screen
+  // TODO: make morse code signs bigger?
 
   // receive data from the arduino side
   if (port.available() > 0) { 
@@ -385,8 +393,8 @@ void draw() {
       stringTranslation = "";
       templstring = "";
     }
-    textFont(f, 26);
-    fill(100);
+    textFont(b, 26);
+    fill(0);
     textAlign(CENTER);
     text(stringTranslation, width/2+width/4, 700);
   }
@@ -404,70 +412,140 @@ void input(String input) {
 }
 
 void translate() {
-  // remove everything from the Morse List from previous translations
-  morseList.clear();
-  // transform all letters to Uppercase, since only uppercase letters are in the Dictionary
-  String input_upper = user_input.toUpperCase();
-  //debuging
-  println("Input_upper: " + input_upper);
-  // TODO: make a morse translation from the user_input variable at button click
-  for (int i = 0; i < input_upper.length(); i++) {
-    // get the char in the String at position i
-    char singlel = input_upper.charAt(i);
-    //debugging
-    println("Char"+i+": "+singlel);
-    String singles = str(singlel);
-    //debugging
-    println("singles letter string: "+singles);
-    // look up the string representation of the morse code signal
-    String morsesig = morseSigDict.get(singles);
-    //debugging
-    println("morsesig from dict: "+morsesig);
 
-    // send integer signals to the Arduino if a representation of the character was found in the dict
-    if (morsesig != null) {
-      for (int s = 0; s <= morsesig.length(); s++) {
-        // do this while we're inside the signal index
-        if (morsesig.length() > s) {
-          char signal = morsesig.charAt(s);
-          //d
-          //println("sinlge char signal" + s + " from letter" + i +": " + signal);
-          // make the char into a string again, because otherwise int() will give me the ASCII number when I feed it with a character
-          String signal2 = str(signal);
-          //d
-          //println("Signal2: "+signal2);
-          int number = int(signal2);
-          //d
-          //println("single char signal as number: "+ number);
-          port.write(number);
-          // write signal seperator 0 not needed since Arduino side handles that
-          // save the signal in a list for complete storage of signal on the processing side
-          morseList.append(number);
-          //also add signal seperator in case it isn't a space anyways
-          if (number != 8) {
-            morseList.append(0);
+  // only translate if the input isn't too big
+  if (textWidth(user_input)<=(width/2)) {
+
+    // tell user to watch the Arduino to see translation;)
+    showArduinoHint = 1;
+    // remove everything from the Morse List from previous translations
+    morseList.clear();
+    // transform all letters to Uppercase, since only uppercase letters are in the Dictionary
+    String input_upper = user_input.toUpperCase();
+    //debugging
+    println("Input_upper: " + input_upper);
+    for (int i = 0; i < input_upper.length(); i++) {
+      // get the char in the String at position i
+      char singlel = input_upper.charAt(i);
+      //debugging
+      println("Char"+i+": "+singlel);
+      String singles = str(singlel);
+      //debugging
+      println("singles letter string: "+singles);
+      // look up the string representation of the morse code signal
+      String morsesig = morseSigDict.get(singles);
+      //debugging
+      println("morsesig from dict: "+morsesig);
+
+      // send integer signals to the Arduino if a representation of the character was found in the dict
+      if (morsesig != null) {
+        for (int s = 0; s <= morsesig.length(); s++) {
+          // do this while we're inside the signal index
+          if (morsesig.length() > s) {
+            char signal = morsesig.charAt(s);
+            //d
+            //println("sinlge char signal" + s + " from letter" + i +": " + signal);
+            // make the char into a string again, because otherwise int() will give me the ASCII number when I feed it with a character
+            String signal2 = str(signal);
+            //d
+            //println("Signal2: "+signal2);
+            int number = int(signal2);
+            //d
+            //println("single char signal as number: "+ number);
+            port.write(number);
+            // write signal seperator 0 not needed since Arduino side handles that
+            // save the signal in a list for complete storage of signal on the processing side
+            morseList.append(number);
+            //also add signal seperator in case it isn't a space anyways
+            if (number != 8) {
+              morseList.append(0);
+            }
+          } else if (morsesig.length() == s && morsesig.charAt(0) != '8') {
+            // we need to send a 7 when we are done looping through a single letter signal // not always (case letter is 8 = space)
+            port.write(7);
+            morseList.append(7);
+            //d
+            //println("END OF LETTER");
           }
-        } else if (morsesig.length() == s && morsesig.charAt(0) != '8') {
-          // we need to send a 7 when we are done looping through a single letter signal // not always (case letter is 8 = space)
-          port.write(7);
-          morseList.append(7);
-          //d
-          //println("END OF LETTER");
         }
-
+      } else {
+        // send an error code otherwise
+        port.write(9);
+        //TODO: spereator needed? handling 9 not thought out yet
+        // save the error in the IntList representation of the whole translation
+        morseList.append(9);
+        morseList.append(0);
       }
-    } else {
-      // send an error code otherwise
-      port.write(9);
-      //TODO: spereator needed? handling 9 not thought out yet
-      // save the error in the IntList representation of the whole translation
-      morseList.append(9);
-      morseList.append(0);
     }
-
-
-    
   }
+  /*
+  // tell user to watch the Arduino to see translation;)
+   showArduinoHint = 1;
+   // remove everything from the Morse List from previous translations
+   morseList.clear();
+   // transform all letters to Uppercase, since only uppercase letters are in the Dictionary
+   String input_upper = user_input.toUpperCase();
+   //debuging
+   println("Input_upper: " + input_upper);
+   // TODO: make a morse translation from the user_input variable at button click
+   for (int i = 0; i < input_upper.length(); i++) {
+   // get the char in the String at position i
+   char singlel = input_upper.charAt(i);
+   //debugging
+   println("Char"+i+": "+singlel);
+   String singles = str(singlel);
+   //debugging
+   println("singles letter string: "+singles);
+   // look up the string representation of the morse code signal
+   String morsesig = morseSigDict.get(singles);
+   //debugging
+   println("morsesig from dict: "+morsesig);
+   
+   // send integer signals to the Arduino if a representation of the character was found in the dict
+   if (morsesig != null) {
+   for (int s = 0; s <= morsesig.length(); s++) {
+   // do this while we're inside the signal index
+   if (morsesig.length() > s) {
+   char signal = morsesig.charAt(s);
+   //d
+   //println("sinlge char signal" + s + " from letter" + i +": " + signal);
+   // make the char into a string again, because otherwise int() will give me the ASCII number when I feed it with a character
+   String signal2 = str(signal);
+   //d
+   //println("Signal2: "+signal2);
+   int number = int(signal2);
+   //d
+   //println("single char signal as number: "+ number);
+   port.write(number);
+   // write signal seperator 0 not needed since Arduino side handles that
+   // save the signal in a list for complete storage of signal on the processing side
+   morseList.append(number);
+   //also add signal seperator in case it isn't a space anyways
+   if (number != 8) {
+   morseList.append(0);
+   }
+   } else if (morsesig.length() == s && morsesig.charAt(0) != '8') {
+   // we need to send a 7 when we are done looping through a single letter signal // not always (case letter is 8 = space)
+   port.write(7);
+   morseList.append(7);
+   //d
+   //println("END OF LETTER");
+   }
+   
+   }
+   } else {
+   // send an error code otherwise
+   port.write(9);
+   //TODO: spereator needed? handling 9 not thought out yet
+   // save the error in the IntList representation of the whole translation
+   morseList.append(9);
+   morseList.append(0);
+   }
+   
+   
+   
+   }
+   */
 }
 
 void translate_to_text() {
