@@ -7,6 +7,7 @@ https://processing.org/tutorials/text/#displaying-text
  https://en.wikipedia.org/wiki/Morse_code
  controlP5 library
  millis: https://www.arduino.cc/reference/en/language/functions/time/millis/
+ trim: https://processing.org/reference/trim_.html
  */
 
 
@@ -48,6 +49,10 @@ String stringTranslation = "";
 // show translation only after button was pressed by user on screen (0 = don't show, 1 = show)
 int showTranslation = 0;
 int showWarning = 0;
+// contains the translations for letters to morse signals
+StringDict morseSigDict; // filled in setup
+// stores the complete Letter to Morse signal translation, so it can be printed on screen later
+IntList morseList = new IntList();
 
 //TODO: make a dictionary to translate letters to morse. joker symbol for not matching letter inputs (e.g. input that can't be found in the morse dict), handle errors as spaces?
 
@@ -115,6 +120,50 @@ void setup() {
   morseLetterDict.set("LLLss", "8");
   morseLetterDict.set("LLLLs", "9");
   morseLetterDict.set("LLLLL", "0");
+  
+  
+  // setup the dictionary that translates the other way around, from letters to morse signals
+  morseSigDict = new StringDict();
+  morseSigDict.set("A","12");
+  morseSigDict.set("B","2111");
+  morseSigDict.set("C","2121");
+  morseSigDict.set("D","211");
+  morseSigDict.set("E","1");
+  morseSigDict.set("F","1121");
+  morseSigDict.set("G","221");
+  morseSigDict.set("H","1111");
+  morseSigDict.set("I","11");
+  morseSigDict.set("J","1222");
+  morseSigDict.set("K","212");
+  morseSigDict.set("L","1211");
+  morseSigDict.set("M","22");
+  morseSigDict.set("N","21");
+  morseSigDict.set("O","222");
+  morseSigDict.set("P","1221");
+  morseSigDict.set("Q","2212");
+  morseSigDict.set("R","121");
+  morseSigDict.set("S","111");
+  morseSigDict.set("T","2");
+  morseSigDict.set("U","112");
+  morseSigDict.set("V","1112");
+  morseSigDict.set("W","122");
+  morseSigDict.set("X","2112");
+  morseSigDict.set("Y","2122");
+  morseSigDict.set("Z","2211");
+  //numbers
+  morseSigDict.set("1","12222");
+  morseSigDict.set("2","11222");
+  morseSigDict.set("3","11122");
+  morseSigDict.set("4","11112");
+  morseSigDict.set("5","11111");
+  morseSigDict.set("6","21111");
+  morseSigDict.set("7","22111");
+  morseSigDict.set("8","22211");
+  morseSigDict.set("9","22221");
+  morseSigDict.set("0","22222");
+  //new word (code=8) when space as input given
+  morseSigDict.set(" ","8");
+  
 }
 
 void draw() {
@@ -149,6 +198,9 @@ void draw() {
   }
 
   // TODO: Screen to Arduino Logic
+  // all handled by the translate button function?
+  // debugging
+  println("The morse list(P to A): " + morseList);
 
 
 
@@ -347,13 +399,70 @@ void draw() {
 }
 
 void input(String input) {
-  //TODO: make a limit to limit the amount of user input
+  //TODO: make a limit to limit the amount of user input...in draw() done?
   //set the user_input variable that draw() is showing on screen.
   user_input = input;
 }
 
 void translate() {
+  // transform all letters to Uppercase, since only uppercase letters are in the Dictionary
+  String input_upper = user_input.toUpperCase();
   // TODO: make a morse translation from the user_input variable at button click
+  for(int i = 0; i < input_upper.length(); i++){
+    // get the char in the String at position i
+    char singlel = input_upper.charAt(i);
+    String singles = str(singlel);
+    // look up the string representation of the morse code signal
+    String morsesig = morseSigDict.get(singles);
+    
+    // send integer signals to the Arduino if a representation of the character was found in the dict
+    if(morsesig != null){
+      for(int s = 0; s <= morsesig.length(); s++){
+        // do this while we're inside the signal index
+        if(morsesig.length() > i){
+          char signal = morsesig.charAt(i);
+          int number = int(signal);
+          port.write(number);
+          // write signal seperator 0 not needed since Arduino side handles that
+        } else if(morsesig.length() == i){
+        // we need to send a 7 when we are done looping through a single letter signal
+        port.write(7);
+        
+      }
+      
+      // save the signal in a list for complete storage of signal on the processing side
+      morseList.append(number);
+      //also add signal seperator in case it isn't a space anyways
+      if(number != 8){
+        morseList.append(0);
+      }
+    }
+   }else{
+      // send an error code otherwise
+      port.write(9);
+      //TODO: spereator needed? handling 9 not thought out yet
+      // save the error in the IntList representation of the whole translation
+      morseList.append(9);
+      morseList.append(0);
+     }
+    
+    
+    /*
+    port.write(1);
+    port.write(2);
+    port.write(7);
+    port.write(1);
+    port.write(8);
+    port.write(1);
+    //println(i);
+    */
+    
+    // store the sig in a list since we might want to keep it to print a visual representation to the screen
+    //morseList.append(morsesig) // morselist still needs to be created
+   
+    
+    }
+ 
 }
 
 void translate_to_text() {

@@ -45,11 +45,17 @@ void loop() {
       delay(2000);
       break;
     case 8:
-      // new word, break of 7 seconds needed
+      // new word, break of 7 seconds needed(only put delay of 6000 because last letter comes with 1 sec break anyways)
       digitalWrite(ledPin, LOW);
       delay(6000);
       break;
-  }
+    case 9:
+    // error received (this means the character input from user was not in the MorseSigDict in processing)
+    // TODO: how to handle this case?
+    break;
+    }    
+
+  
   } else{
   // Arduino to Processing Part
   // read whether button is pressed
