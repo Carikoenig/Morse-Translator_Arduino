@@ -404,6 +404,8 @@ void input(String input) {
 }
 
 void translate() {
+  // remove everything from the Morse List from previous translations
+  morseList.clear();
   // transform all letters to Uppercase, since only uppercase letters are in the Dictionary
   String input_upper = user_input.toUpperCase();
   //debuging
@@ -429,10 +431,14 @@ void translate() {
         if (morsesig.length() > s) {
           char signal = morsesig.charAt(s);
           //d
-          println("sinlge char signal" + s + " from letter" + i +": " + signal);
-          int number = int(signal);
+          //println("sinlge char signal" + s + " from letter" + i +": " + signal);
+          // make the char into a string again, because otherwise int() will give me the ASCII number when I feed it with a character
+          String signal2 = str(signal);
           //d
-          println("single char signal as number: "+ number);
+          //println("Signal2: "+signal2);
+          int number = int(signal2);
+          //d
+          //println("single char signal as number: "+ number);
           port.write(number);
           // write signal seperator 0 not needed since Arduino side handles that
           // save the signal in a list for complete storage of signal on the processing side
@@ -441,10 +447,12 @@ void translate() {
           if (number != 8) {
             morseList.append(0);
           }
-        } else if (morsesig.length() == s) {
-          // we need to send a 7 when we are done looping through a single letter signal
+        } else if (morsesig.length() == s && morsesig.charAt(0) != '8') {
+          // we need to send a 7 when we are done looping through a single letter signal // not always (case letter is 8 = space)
           port.write(7);
           morseList.append(7);
+          //d
+          //println("END OF LETTER");
         }
 
       }
@@ -458,15 +466,7 @@ void translate() {
     }
 
 
-    /*
-    port.write(1);
-     port.write(2);
-     port.write(7);
-     port.write(1);
-     port.write(8);
-     port.write(1);
-     //println(i);
-     */
+    
   }
 }
 
