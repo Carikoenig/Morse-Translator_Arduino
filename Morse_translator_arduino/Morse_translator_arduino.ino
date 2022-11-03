@@ -76,8 +76,8 @@ void loop() {
     // read whether button is pressed
     buttonState = digitalRead(buttonPin);
     // send a corresponding signal to processing, containing info about press state and duration (and light the LED when the button is pressed of course)
-    // info is send every 50 milli seconds. This creates many values that later won't be necessary e.g. sending the info of button being pressed 1 sec
-    // and then 50 milli seconds later still pressed but duration got updated to 1 sec and 50 millis. 
+    // info is send every x milli seconds. This creates many values that later won't be necessary e.g. sending the info of button being pressed 1 sec
+    // and then x milli seconds later still pressed but duration got updated to 1 sec and x millis. 
     // The processing code side handles this by filtering out the lower duration values of the same button press (or not press), by only taking the highest duration value into account.
     if (buttonState == HIGH) {
       // track the time of button press
@@ -99,7 +99,7 @@ void loop() {
       // send the info about duration and not presed state(=0) to processing
       Serial.println(String(duration) + "0");
     }
-    // delay for 50 milli seconds to not overflow processing with too much data.
+    // delay for x milli seconds to not overflow processing with too much data.
     delay(50);
   }
 }
