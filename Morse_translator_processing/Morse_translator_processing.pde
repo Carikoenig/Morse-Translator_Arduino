@@ -256,9 +256,6 @@ void draw() {
 
   // Arduino to Screen Logic //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  // TODO: Outsource stuff in smaller functions for readability!!
-  // TODO: enhance performance/speed, that for-loop is slowing stuff down
-
   // receive data from the arduino side
   if (port.available() > 0) { 
 
@@ -473,16 +470,16 @@ void storeAndTranslate() {
       } else {
         // error tracking
         MorseReceivedFromArduino.append(9);
-        // append a "joker" letter to the Letter list...let's see what it caught in this case, since I thought I have all the cases stated already above (add to string)
+        // append a "joker" letter to the Letter list...let's see what it catches in this case, since I think I have all the plausible cases stated already above (add to string)
         stringTranslation = stringTranslation + "(^o^)" + previousInput;
       }
     }
 
-    //TODO: get rid of ANOYING flimmer...solution so far: put a small delay
     // TODO: trim the beginning space (half done, but what if it starts with 9?)
 
-    /*
-    // display the received signals in the IntList on screen as circles and rectangles ///////////////////////////////
+    ////// Show the Morse Input from the Arduino on the computer screen ////////////////////////////////////////////////////
+    
+    // display the received signals in the IntList on screen as circles and rectangles 
      int xloc = width/2 + width/4 + 20;
      int yloc = 200;
      int shapesize = 10;
@@ -536,12 +533,11 @@ void storeAndTranslate() {
      }
      }
      
-
+     
     //showMorseOnScreen();
 
-    ////////////////
 
-    // better way to stop flimmer probs exists, but for now...
+    // delay to stop flimmering display
     delay(7);
     // idea: instead of running through the foor loop all the way everytime: cut out the already read by making an object array of shapes that is going to be printed???maybe...but we would have to for loop through that as well to paint every time^^
 
@@ -559,6 +555,8 @@ void storeAndTranslate() {
   }
 }
 
+
+/*
 // get rid of it? TODO. where to put this part
 void showMorseOnScreen() {
   int xloc = width/2 + width/4 + 20;
@@ -614,3 +612,4 @@ void showMorseOnScreen() {
     }
   }
 }
+*/
