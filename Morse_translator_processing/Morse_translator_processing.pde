@@ -6,9 +6,21 @@
  as well as the arduino programming script is needed to make it work.
  */
 
+/*
 // User manual and to be expected exceptions:
-//watch user input regulations...what if no letters that can be translatd into morse: letters or other symbols that are not in 
-// the international morse code chart will be ignored when translating text to the Arduino LED 
+ 
+ Arduino to Processing (morse to text - right side of GUI):
+ - Arduino to screen translation lacks 1 letter behind, if input is given after the translate_to_text button has been pressed, then it will continue to print 
+ the added material, but not the latest letter (press translate_to_text button again to view the last one also)
+ 
+ Processing to Arduino (text to morse translation - left side of GUI)
+ - if the user inputs letters, symbols or characters(\,#,+,Ü,Ä §,% etc.) unknow to the international morse code chart (shown on the right side of the GUI), then they will be ignored and nothing
+ will be done with that information on the arduino side, so no LED blinking will occur
+ - if the user inputs morse signals on the arduino, that are not actually morse signals (e.g. short-short-short-short-short-short), then this will be translated to (?)
+ - in case you receive a (^o^) in your translation, you have encountered a mysterious error, and I would be interested to know which integer value is being printed next to it (it should not happen)
+ 
+ 
+ */
 
 /*
 https://processing.org/tutorials/text/#displaying-text
@@ -245,148 +257,13 @@ void draw() {
   // Arduino to Screen Logic //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   // TODO: Outsource stuff in smaller functions for readability!!
-  // TODO: make morse code signs bigger?
   // TODO: enhance performance/speed, that for-loop is slowing stuff down
 
   // receive data from the arduino side
   if (port.available() > 0) { 
-    // Strings are used here, because  the transformation and sending of integers did not work,
-    // even not after 2 tutors tried to help me in the workshop sessions on thursdays (thanks to Gino and the guy in the purple hoddie btw)
-    String input = port.readStringUntil('\n');
-    int transInput;
-    int pressedState;
-    if (input != null) {
-      // trim needed because otherwise I get a Format exception. It seems to be the case that whitespaces and other stuff,
-      // which can't be parsed to an Integer can be send along through Serial Port
-      input = input.trim();
-      // transform the string into integer
-      transInput = int(input);
-      // check for which button state has been sent: 1 = button pressed, 0 = not pressed (get last digit by dividing through 10)
-      pressedState = transInput % 10;
-      
-      // when we receive data, that indicates a new button state, then the data piece sent right before that is interesting to us, 
-      // since that will tell us for how long the last button press (or not press) lasted. We will save and accumulate those interesting data pieces in a list.
-      if (previousState != pressedState) {
-        
-        // read the duration of the signal (divide through 10 to get rid of last digit that indicates press or no press)
-        if (previousInput/10 > 3000 && previousState == 1) {
-          // add a long press to the IntList storage
-          MorseReceivedFromArduino.append(2);
-          // add a long press to templstring (=the temporary saving space for the morse signals (e.g. long-long-short) needed to build one letter) 
-          templstring = templstring + "L";
-        } else if (previousInput/10 < 3000 && previousState == 1) {
-          // add a short press to the IntList and templ
-          MorseReceivedFromArduino.append(1);
-          templstring = templstring + "s";
-        } else if (previousState == 0 && previousInput/10 <=1000) {
-          // add a simple space (between signals of same letter)
-          MorseReceivedFromArduino.append(0);
-          // do nothing with the templstring
-        } else if (previousState == 0 && previousInput/10 > 1000 && previousInput/10 <=6000) {
-          // add a space between letters (according to morse standards it is 3 seconds long, but let's consider a time frame between 1-6 seconds as leeway)
-          MorseReceivedFromArduino.append(7);
-          // since the signal that belongs to one letter (e.g. short-long-long) is finished we can determine which letter it belongs to by checking the translation in the dictionary
-          String letter = checkLetter(templstring);
-          // add the letter to the string translation
-          stringTranslation = stringTranslation + letter;
-          // make the temporary string storage empty again so it can be filled with a new letter
-          templstring = "";
-        } else if (previousState == 0 && previousInput/10 > 6000) {
-          // add a space between words (ideally it should be 7 seconds long, we will consider a time greater 6 seconds to combat inaccuracies in human button push skills;))
-          MorseReceivedFromArduino.append(8);
-          // an in between words space emerging means a) that the letter ends (if there was one before) and b) we have to put a space in the Output string
-          if (templstring != "") {
-            String letter = checkLetter(templstring);
-            stringTranslation = stringTranslation + letter + " ";
-            templstring = "";
-          }
-        } else {
-          // error tracking
-          MorseReceivedFromArduino.append(9);
-          // append a "joker" letter to the Letter list...let's see what it caught in this case, since I thought I have all the cases stated already above (add to string)
-          stringTranslation = stringTranslation + "(^o^)" + previousInput;
-        }
-      }
 
-      //TODO: get rid of ANOYING flimmer...solution so far: put a small delay
-      // TODO: trim the beginning space (half done, but what if it starts with 9?)
-
-      // display the received signals in the IntList on screen as circles and rectangles
-      int xloc = width/2 + width/4 + 20;
-      int yloc = 200;
-      int shapesize = 10;
-      int xshift = 15;
-      int filler = shapesize/2;
-      fill(0);
-      ellipseMode(CORNERS);
-      // start loop with i = 1 because value at 0 always is the useless space that gets recorded before you push the button the first time
-      for (int i = 1; i < MorseReceivedFromArduino.size(); i++) {
-        int morseSig = MorseReceivedFromArduino.get(i);
-        switch(morseSig) {
-        case 1: 
-          // short press
-          ellipse(xloc, yloc, xloc+shapesize, yloc+shapesize);
-          xloc = xloc + xshift;
-          break;
-        case 2: 
-          // long press
-          rect(xloc, yloc, shapesize*3, shapesize);
-          xloc = xloc + shapesize*3 + filler;
-          break;
-        case 0:
-          // seperate signal
-          // nothing to do here since I already shift the x in case 1 and 2
-          break;
-        case 7:
-          // new letter
-          // make 3 units shift in x to mark new letter begin
-          xloc = xloc + shapesize*3;
-          break;
-        case 8:
-          // new word
-          // make 7 units shift in x to mark new word begin
-          xloc = xloc + shapesize*7;
-          break;
-        case 9:
-          // error
-          // display nothing for now??? TODO error handling
-          break;
-        }
-        // reset yloc if needed
-        if (xloc > width -50) {
-          yloc = yloc + shapesize+filler;
-          xloc = width/2 + width/4 + 20;
-        }
-        if (yloc > 460) {
-          fill(255, 0, 50);
-          textAlign(LEFT);
-          text("Your input is too big for the screen!", width/2 + width/4 + 20, 165);
-          break;
-        }
-      }
-
-      // better way to stop flimmer probs exists, but for now...
-      delay(7);
-      // idea: instead of running through the foor loop all the way everytime: cut out the already read by making an object array of shapes that is going to be printed???maybe...but we would have to for loop through that as well to paint every time^^
-
-
-      // Display the translated text on screen
-      // make an array out of the array that groups the letters and spaces together in its own array by seperating after the spaces
-
-
-
-
-      // was once useful for debugging
-      //println("InputTrans: " + transInput);
-      //println(SignalReceivedFromArduino);
-      println(MorseReceivedFromArduino);
-      //println("Letter list: " + MorseAsLetters);
-      println(stringTranslation);
-
-      //overwrite the previous States to the new ones for next loop
-      previousInput = transInput;
-      previousState = pressedState;
-    }
+    // read the incoming data, store it and translate the signals (has it's own function underneath draw())
+    storeAndTranslate();
   }
 
   // show the translated string (if button has been previously pressed)
@@ -515,6 +392,17 @@ void translate_to_text() {
   }
 }
 
+String checkLetter(String morsedLetter) {
+
+  // determine which character is matched with the morsedLetter
+  String letter = morseLetterDict.get(morsedLetter);
+  if (letter != null) {
+    return letter;
+  } else {
+    return "(?)";
+  }
+}
+
 
 void delete() {
   // remove all entries from the IntList where the Morse signal from Arduino is stored 
@@ -528,12 +416,201 @@ void delete() {
 
 
 
-String checkLetter(String morsedLetter) {
-  // determine which character is matched with the morsedLetter
-  String letter = morseLetterDict.get(morsedLetter);
-  if (letter != null) {
-    return letter;
-  } else {
-    return "(?)";
+
+
+void storeAndTranslate() {
+
+  // Strings are used here, because  the transformation and sending of integers did not work,
+  // even not after 2 tutors tried to help me in the workshop sessions on thursdays (thanks to Gino and the guy in the purple hoddie btw)
+  String input = port.readStringUntil('\n');
+  int transInput;
+  int pressedState;
+  if (input != null) {
+    // trim needed because otherwise I get a Format exception. It seems to be the case that whitespaces and other stuff,
+    // which can't be parsed to an Integer can be send along through Serial Port
+    input = input.trim();
+    // transform the string into integer
+    transInput = int(input);
+    // check for which button state has been sent: 1 = button pressed, 0 = not pressed (get last digit by dividing through 10)
+    pressedState = transInput % 10;
+
+    // when we receive data, that indicates a new button state, then the data piece sent right before that is interesting to us, 
+    // since that will tell us for how long the last button press (or not press) lasted. We will save and accumulate those interesting data pieces in a list.
+    if (previousState != pressedState) {
+
+      // read the duration of the signal (divide through 10 to get rid of last digit that indicates press or no press)
+      if (previousInput/10 > 3000 && previousState == 1) {
+        // add a long press to the IntList storage
+        MorseReceivedFromArduino.append(2);
+        // add a long press to templstring (=the temporary saving space for the morse signals (e.g. long-long-short) needed to build one letter) 
+        templstring = templstring + "L";
+      } else if (previousInput/10 < 3000 && previousState == 1) {
+        // add a short press to the IntList and templ
+        MorseReceivedFromArduino.append(1);
+        templstring = templstring + "s";
+      } else if (previousState == 0 && previousInput/10 <=1000) {
+        // add a simple space (between signals of same letter)
+        MorseReceivedFromArduino.append(0);
+        // do nothing with the templstring
+      } else if (previousState == 0 && previousInput/10 > 1000 && previousInput/10 <=6000) {
+        // add a space between letters (according to morse standards it is 3 seconds long, but let's consider a time frame between 1-6 seconds as leeway)
+        MorseReceivedFromArduino.append(7);
+        // since the signal that belongs to one letter (e.g. short-long-long) is finished we can determine which letter it belongs to by checking the translation in the dictionary
+        String letter = checkLetter(templstring);
+        // add the letter to the string translation
+        stringTranslation = stringTranslation + letter;
+        // make the temporary string storage empty again so it can be filled with a new letter
+        templstring = "";
+      } else if (previousState == 0 && previousInput/10 > 6000) {
+        // add a space between words (ideally it should be 7 seconds long, we will consider a time greater 6 seconds to combat inaccuracies in human button push skills;))
+        MorseReceivedFromArduino.append(8);
+        // an in between words space emerging means a) that the letter ends (if there was one before) and b) we have to put a space in the Output string
+        if (templstring != "") {
+          String letter = checkLetter(templstring);
+          stringTranslation = stringTranslation + letter + " ";
+          templstring = "";
+        }
+      } else {
+        // error tracking
+        MorseReceivedFromArduino.append(9);
+        // append a "joker" letter to the Letter list...let's see what it caught in this case, since I thought I have all the cases stated already above (add to string)
+        stringTranslation = stringTranslation + "(^o^)" + previousInput;
+      }
+    }
+
+    //TODO: get rid of ANOYING flimmer...solution so far: put a small delay
+    // TODO: trim the beginning space (half done, but what if it starts with 9?)
+
+    /*
+    // display the received signals in the IntList on screen as circles and rectangles ///////////////////////////////
+     int xloc = width/2 + width/4 + 20;
+     int yloc = 200;
+     int shapesize = 10;
+     int xshift = 15;
+     int filler = shapesize/2;
+     fill(0);
+     ellipseMode(CORNERS);
+     // start loop with i = 1 because value at 0 always is the useless space that gets recorded before you push the button the first time
+     for (int i = 1; i < MorseReceivedFromArduino.size(); i++) {
+     int morseSig = MorseReceivedFromArduino.get(i);
+     switch(morseSig) {
+     case 1: 
+     // short press
+     ellipse(xloc, yloc, xloc+shapesize, yloc+shapesize);
+     xloc = xloc + xshift;
+     break;
+     case 2: 
+     // long press
+     rect(xloc, yloc, shapesize*3, shapesize);
+     xloc = xloc + shapesize*3 + filler;
+     break;
+     case 0:
+     // seperate signal
+     // nothing to do here since I already shift the x in case 1 and 2
+     break;
+     case 7:
+     // new letter
+     // make 3 units shift in x to mark new letter begin
+     xloc = xloc + shapesize*3;
+     break;
+     case 8:
+     // new word
+     // make 7 units shift in x to mark new word begin
+     xloc = xloc + shapesize*7;
+     break;
+     case 9:
+     // error
+     // display nothing for now??? TODO error handling
+     break;
+     }
+     // reset yloc if needed
+     if (xloc > width -50) {
+     yloc = yloc + shapesize+filler;
+     xloc = width/2 + width/4 + 20;
+     }
+     if (yloc > 460) {
+     fill(255, 0, 50);
+     textAlign(LEFT);
+     text("Your input is too big for the screen!", width/2 + width/4 + 20, 165);
+     break;
+     }
+     }
+     
+
+    //showMorseOnScreen();
+
+    ////////////////
+
+    // better way to stop flimmer probs exists, but for now...
+    delay(7);
+    // idea: instead of running through the foor loop all the way everytime: cut out the already read by making an object array of shapes that is going to be printed???maybe...but we would have to for loop through that as well to paint every time^^
+
+
+    // was once useful for debugging
+    //println("InputTrans: " + transInput);
+    //println(SignalReceivedFromArduino);
+    println(MorseReceivedFromArduino);
+    //println("Letter list: " + MorseAsLetters);
+    println(stringTranslation);
+
+    //overwrite the previous States to the new ones for next loop
+    previousInput = transInput;
+    previousState = pressedState;
+  }
+}
+
+// get rid of it? TODO. where to put this part
+void showMorseOnScreen() {
+  int xloc = width/2 + width/4 + 20;
+  int yloc = 200;
+  int shapesize = 10;
+  int xshift = 15;
+  int filler = shapesize/2;
+  fill(0);
+  ellipseMode(CORNERS);
+  // start loop with i = 1 because value at 0 always is the useless space that gets recorded before you push the button the first time
+  for (int i = 1; i < MorseReceivedFromArduino.size(); i++) {
+    int morseSig = MorseReceivedFromArduino.get(i);
+    switch(morseSig) {
+    case 1: 
+      // short press
+      ellipse(xloc, yloc, xloc+shapesize, yloc+shapesize);
+      xloc = xloc + xshift;
+      break;
+    case 2: 
+      // long press
+      rect(xloc, yloc, shapesize*3, shapesize);
+      xloc = xloc + shapesize*3 + filler;
+      break;
+    case 0:
+      // seperate signal
+      // nothing to do here since I already shift the x in case 1 and 2
+      break;
+    case 7:
+      // new letter
+      // make 3 units shift in x to mark new letter begin
+      xloc = xloc + shapesize*3;
+      break;
+    case 8:
+      // new word
+      // make 7 units shift in x to mark new word begin
+      xloc = xloc + shapesize*7;
+      break;
+    case 9:
+      // error
+      // display nothing for now??? TODO error handling
+      break;
+    }
+    // reset yloc if needed
+    if (xloc > width -50) {
+      yloc = yloc + shapesize+filler;
+      xloc = width/2 + width/4 + 20;
+    }
+    if (yloc > 460) {
+      fill(255, 0, 50);
+      textAlign(LEFT);
+      text("Your input is too big for the screen!", width/2 + width/4 + 20, 165);
+      break;
+    }
   }
 }
